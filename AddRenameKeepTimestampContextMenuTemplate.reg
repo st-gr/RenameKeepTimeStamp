@@ -1,0 +1,8 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CLASSES_ROOT\*\shell\RenameKeepTimestamp]
+@="My Rename keep timestamp"
+"Icon"="\"C:\\Path\\To\\Your\\Executable\\RenameKeepTimestamp.exe\""
+
+[HKEY_CLASSES_ROOT\*\shell\RenameKeepTimestamp\command]
+@="\"C:\\Path\\To\\Your\\Executable\\RenameKeepTimestamp.exe\" \"%1\""
