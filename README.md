@@ -5,7 +5,8 @@
 ## Features
 - **Preserve Original Timestamps:** Renames files while keeping their original creation and modification dates intact.
 - **Explorer Context Menu Integration:** Adds a convenient option to the right-click context menu in Windows Explorer.
-- **Interface:** Displays a dialog with the current filename prefilled.
+- **Command-Line Interface:** Rename files directly from the command line without any dialog.
+- **GUI Dialog:** Displays a dialog with the current filename prefilled when no new name is given.
 ## Dependencies
 - **Windows Operating System:** Designed for Windows 7 and above.
 - **Visual Studio 2017:** Required for building the application from source.
@@ -78,6 +79,40 @@ To add the application to the Windows Explorer context menu for easy access:
    - You should see the option **"My Rename keep timestamp"** in the context menu.
 
 ## Usage Instructions
+
+### Command-Line Usage
+
+```
+RenameKeepTimestamp.exe [options] <filepath> [<newname>]
+```
+
+**Arguments:**
+- `<filepath>` — Path to the file to rename.
+- `<newname>` — New filename (without path). If omitted, a dialog is shown.
+
+**Options:**
+- `-h`, `--help` — Show usage information.
+
+**Exit codes:**
+- `0` — Success
+- `1` — Error (file not found, rename failed, etc.)
+
+**Examples:**
+
+```cmd
+RenameKeepTimestamp.exe "C:\Documents\report.docx" "report_final.docx"
+RenameKeepTimestamp.exe --help
+```
+
+**Note:** Since this is a GUI-subsystem application, PowerShell does not wait for it to finish and the prompt returns immediately. Use `Start-Process -Wait -NoNewWindow` to get synchronous behavior in PowerShell:
+
+```powershell
+Start-Process .\RenameKeepTimestamp.exe -ArgumentList '"C:\Documents\report.docx"', '"report_final.docx"' -Wait -NoNewWindow
+```
+
+In cmd.exe it works naturally without any workaround.
+
+### GUI Usage (Context Menu)
 1. **Right-Click a File**
 
    - In Windows Explorer, navigate to the file you want to rename.

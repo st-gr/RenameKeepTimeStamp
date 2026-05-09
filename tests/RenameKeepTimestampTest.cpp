@@ -48,6 +48,32 @@ TEST(RenameKeepTimestampTest, RenameAndPreserveTimestamps)
     DeleteFile(newFileName.c_str());
 }
 
+TEST(RenameKeepTimestampTest, RenameInSameDirectory)
+{
+    // Simulates CLI mode: rename with just a new filename in the same directory
+    wchar_t tempPath[MAX_PATH];
+    GetTempPath(MAX_PATH, tempPath);
+
+    std::wstring tempFile = std::wstring(tempPath) + L"cli_test_original.txt";
+    std::wofstream ofs(tempFile);
+    ofs << L"CLI test content";
+    ofs.close();
+
+    std::wstring newFile = std::wstring(tempPath) + L"cli_test_newname.txt";
+    // Ensure target doesn't already exist
+    DeleteFile(newFile.c_str());
+
+    bool result = RenameFileAndPreserveTimestamps(tempFile, newFile);
+    EXPECT_TRUE(result);
+
+    // Verify old file is gone and new file exists
+    EXPECT_EQ(INVALID_FILE_ATTRIBUTES, GetFileAttributesW(tempFile.c_str()));
+    EXPECT_NE(INVALID_FILE_ATTRIBUTES, GetFileAttributesW(newFile.c_str()));
+
+    // Cleanup
+    DeleteFile(newFile.c_str());
+}
+
 TEST(RenameKeepTimestampTest, NonExistentFile)
 {
     std::wstring nonExistentFile = L"C:\\NonExistentFile.txt";
@@ -56,4 +82,13 @@ TEST(RenameKeepTimestampTest, NonExistentFile)
     DWORD fileAttributes = GetFileAttributesW(nonExistentFile.c_str());
     ASSERT_EQ(fileAttributes, INVALID_FILE_ATTRIBUTES);
     ASSERT_EQ(GetLastError(), ERROR_FILE_NOT_FOUND);
+}
+
+TEST(RenameKeepTimestampTest, RenameNonExistentFileFails)
+{
+    std::wstring nonExistentFile = L"C:\\NonExistentFile_12345.txt";
+    std::wstring newFile = L"C:\\ShouldNotExist_12345.txt";
+
+    bool result = RenameFileAndPreserveTimestamps(nonExistentFile, newFile);
+    EXPECT_FALSE(result);
 }

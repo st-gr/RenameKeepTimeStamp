@@ -1,6 +1,5 @@
 /build/
-/build/*
 /external/
-/external/*
+.claude/
 *.sln
 *.vcxproj*

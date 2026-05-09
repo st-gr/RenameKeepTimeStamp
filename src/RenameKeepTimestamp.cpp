@@ -1,6 +1,7 @@
 #include "FileUtils.h"
 #include <windows.h>
 #include <string>
+#include <cstdio>
 #include <shlwapi.h>  // For PathRemoveFileSpec
 #include <shellapi.h> // For CommandLineToArgvW
 
@@ -14,7 +15,31 @@ std::wstring g_newFileName;
 
 // Function prototypes
 INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
-bool RenameFileAndPreserveTimestamps(const std::wstring& oldPath, const std::wstring& newPath);
+
+void AttachParentConsole()
+{
+    if (AttachConsole(ATTACH_PARENT_PROCESS))
+    {
+        FILE* fp;
+        _wfreopen_s(&fp, L"CONOUT$", L"w", stdout);
+        _wfreopen_s(&fp, L"CONOUT$", L"w", stderr);
+    }
+}
+
+void PrintUsage()
+{
+    wprintf(L"Usage: RenameKeepTimestamp.exe [options] <filepath> [<newname>]\n");
+    wprintf(L"\n");
+    wprintf(L"  <filepath>   Path to the file to rename\n");
+    wprintf(L"  <newname>    New filename (without path). If omitted, a dialog is shown.\n");
+    wprintf(L"\n");
+    wprintf(L"Options:\n");
+    wprintf(L"  -h, --help   Show this help message\n");
+    wprintf(L"\n");
+    wprintf(L"Exit codes:\n");
+    wprintf(L"  0  Success\n");
+    wprintf(L"  1  Error (file not found, rename failed, etc.)\n");
+}
 
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
 {
@@ -22,10 +47,23 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
     int argc;
     LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
 
+    // No arguments: print usage
     if (argc < 2)
     {
-        MessageBoxW(NULL, L"No file specified.", L"Error", MB_OK | MB_ICONERROR);
+        AttachParentConsole();
+        PrintUsage();
+        LocalFree(argv);
         return 1;
+    }
+
+    // Check for help flag
+    std::wstring firstArg = argv[1];
+    if (firstArg == L"--help" || firstArg == L"-h")
+    {
+        AttachParentConsole();
+        PrintUsage();
+        LocalFree(argv);
+        return 0;
     }
 
     g_oldFilePath = argv[1];
@@ -34,9 +72,17 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
     DWORD fileAttributes = GetFileAttributesW(g_oldFilePath.c_str());
     if (fileAttributes == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND)
     {
-        MessageBoxW(NULL, L"The specified file does not exist.", L"Error", MB_OK | MB_ICONERROR);
+        if (argc >= 3)
+        {
+            AttachParentConsole();
+            fwprintf(stderr, L"Error: The specified file does not exist: %s\n", g_oldFilePath.c_str());
+        }
+        else
+        {
+            MessageBoxW(NULL, L"The specified file does not exist.", L"Error", MB_OK | MB_ICONERROR);
+        }
         LocalFree(argv);
-        return 1; // Return a non-zero error code
+        return 1;
     }
 
     // Extract directory and file name
@@ -45,12 +91,32 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
     PathRemoveFileSpecW(directory);
     g_directoryPath = directory;
 
-    wchar_t fileName[MAX_PATH];
     const wchar_t* pFileName = PathFindFileNameW(g_oldFilePath.c_str());
-    wcscpy_s(fileName, MAX_PATH, pFileName);
-    g_oldFileName = fileName;
+    g_oldFileName = pFileName;
 
-    // Show dialog
+    // CLI mode: new name provided as argument
+    if (argc >= 3)
+    {
+        AttachParentConsole();
+        g_newFileName = argv[2];
+
+        std::wstring newFilePath = g_directoryPath + L"\\" + g_newFileName;
+
+        if (RenameFileAndPreserveTimestamps(g_oldFilePath, newFilePath))
+        {
+            wprintf(L"Renamed: %s -> %s\n", g_oldFileName.c_str(), g_newFileName.c_str());
+            LocalFree(argv);
+            return 0;
+        }
+        else
+        {
+            fwprintf(stderr, L"Error: Failed to rename the file.\n");
+            LocalFree(argv);
+            return 1;
+        }
+    }
+
+    // GUI mode: show dialog
     DialogBox(hInstance, MAKEINTRESOURCE(101), NULL, DialogProc);
 
     LocalFree(argv);
@@ -138,5 +204,3 @@ INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM)
     }
     return FALSE;
 }
-
-
